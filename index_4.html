@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Narrowband Target Scout - live</title>
+<style>
+:root{
+  --bg:#0c1118; --panel:#141c27; --panel2:#1b2532; --line:#26313f;
+  --ink:#e8edf3; --mut:#94a3b5; --dim:#6b7a8d;
+  --accent:#5ec8ff; --new:#ffcb5e; --good:#4fd18b; --mid:#f2b45c; --bad:#f2705c;
+  --ha:#f2705c; --oiii:#5ec8ff; --sii:#c58cff;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+header{padding:20px 22px 12px;border-bottom:1px solid var(--line);background:var(--panel)}
+h1{margin:0 0 4px;font-size:19px}
+.sub{color:var(--mut);font-size:12.5px}
+.wrap{padding:16px 22px 60px}
+.tiles{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 6px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 15px;min-width:110px}
+.tile .v{font-size:21px;font-weight:650} .tile .k{color:var(--mut);font-size:12px}
+.rig{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 15px;margin-top:9px;color:var(--mut);font-size:12.5px;line-height:1.7}
+.rig b{color:var(--ink);font-weight:600}
+.status{margin:12px 0 0;padding:9px 13px;border-radius:9px;font-size:13px;border:1px solid var(--line)}
+.status.ok{background:rgba(79,209,139,.1);border-color:rgba(79,209,139,.35)}
+.status.warn{background:rgba(242,180,92,.1);border-color:rgba(242,180,92,.4)}
+.status.err{background:rgba(242,112,92,.1);border-color:rgba(242,112,92,.4)}
+.hint{background:rgba(94,200,255,.08);border:1px solid rgba(94,200,255,.28);border-radius:9px;padding:9px 14px;margin:12px 0 2px;font-size:13px}
+.hint b{color:var(--accent)}
+.controls{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin:14px 0 10px}
+select,input{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px}
+input[type=text]{min-width:170px}
+button.rf{background:var(--panel2);color:var(--accent);border:1px solid rgba(94,200,255,.4);cursor:pointer}
+.count{color:var(--mut);font-size:12.5px;margin-left:auto}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:1240px}
+th,td{text-align:left;padding:8px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+th{position:sticky;top:0;background:var(--panel);cursor:pointer;user-select:none;font-size:12px;color:var(--mut);white-space:nowrap}
+th:hover{color:var(--ink)}
+tr.main:hover{background:var(--panel2)}
+td.cm{color:var(--mut);font-size:12px}
+.nm{font-weight:640} .cm{color:var(--mut);font-size:12px}
+.meter{display:inline-block;width:44px;height:8px;border-radius:5px;background:#223;vertical-align:middle;margin-right:6px;overflow:hidden}
+.meter>span{display:block;height:100%}
+.scoreN{font-weight:680}
+.badge{display:inline-block;padding:1.5px 7px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.b-new{background:rgba(255,203,94,.16);color:var(--new);border:1px solid rgba(255,203,94,.4)}
+.b-cls{background:rgba(148,163,181,.14);color:var(--mut);border:1px solid var(--line)}
+.b-und{background:rgba(94,200,255,.12);color:var(--accent);border:1px solid rgba(94,200,255,.3)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+.emi{font-weight:600}
+.expand{cursor:pointer;width:64px;text-align:center}
+.expbtn{display:inline-block;padding:3px 9px;border-radius:14px;font-size:11px;font-weight:600;cursor:pointer;background:rgba(94,200,255,.13);color:var(--accent);border:1px solid rgba(94,200,255,.45);white-space:nowrap}
+.expbtn:hover{background:rgba(94,200,255,.25)}
+.det{background:#0f1620;color:var(--mut);font-size:12.5px}
+.det td{padding:12px 16px}
+.det .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px 22px}
+.det b{color:var(--ink)}
+.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.subx{color:var(--ink);font-size:12px;font-family:ui-monospace,Menlo,monospace}
+.lnk{white-space:nowrap;font-size:12px}
+.pill{padding:1px 6px;border-radius:6px;font-size:11px;border:1px solid var(--line);color:var(--mut)}
+footer{color:var(--dim);font-size:11.5px;padding:18px 22px;border-top:1px solid var(--line)}
+</style></head>
+<body>
+<header>
+  <h1>Narrowband Target Scout <span style="color:var(--good);font-size:12px;border:1px solid rgba(79,209,139,.4);padding:1px 7px;border-radius:20px;vertical-align:middle">LIVE</span></h1>
+  <div class="sub" id="subtitle"></div>
+</header>
+<div class="wrap">
+  <div id="status" class="status warn">Loading…</div>
+  <div class="tiles" id="tiles"></div>
+  <div class="rig" id="rig"></div>
+
+  <div class="hint">Data is read <b>live from your Google Sheet</b> — edit the sheet, then hit <b>Refresh</b> (or reload) to see changes on any device. Click <b>▸ view</b> on a row for its framing preview + altitude curve.</div>
+
+  <div class="controls">
+    <select id="fType"><option value="">All types</option></select>
+    <select id="fNov"><option value="">All novelty</option><option value="recent">NEW discoveries</option><option value="underexposed">Under-imaged</option><option value="classic">Classic</option></select>
+    <select id="fDiff"><option value="">All difficulty</option><option>Easy</option><option>Moderate</option><option>Hard</option><option>Very hard / expert</option></select>
+    <select id="fMonth"><option value="">Any month</option></select>
+    <select id="fEmi"><option value="">Any emission</option><option>Ha</option><option>OIII</option><option>SII</option></select>
+    <input type="text" id="fSearch" placeholder="search name...">
+    <button class="rf" id="refresh">↻ Refresh</button>
+    <span class="count" id="count"></span>
+  </div>
+
+  <div class="tblwrap">
+  <table id="tbl">
+    <thead><tr>
+      <th data-k="__exp">Preview</th>
+      <th data-k="rank">#</th>
+      <th data-k="score">Score</th>
+      <th data-k="name">Target</th>
+      <th data-k="type">Type</th>
+      <th data-k="novelty">Novelty</th>
+      <th data-k="ra_deg">RA / Dec (J2000)</th>
+      <th data-k="peak_alt_deg">Peak alt</th>
+      <th data-k="best_months">Best months</th>
+      <th data-k="emission">NB filters / palette</th>
+      <th data-k="sub_len">Sub length</th>
+      <th data-k="total_integration">Total integration</th>
+      <th data-k="ref_url">Links</th>
+    </tr></thead>
+    <tbody id="body"></tbody>
+  </table>
+  </div>
+</div>
+<footer id="foot"></footer>
+
+<script>
+/* ======================= CONFIG (site + rig) ======================= */
+const CONFIG = {"year": 2026, "sheet_id": "195T1JIu2wjIktx3s-ZRvT-XKf1ZM7BaoAJBia9beEMo", "sheet_gid": "0", "site": {"name": "Abu Dhabi remote obs (Al Dhafra / Liwa region)", "lat_deg": 23.578079817186588, "lon_deg": 54.745467101634326, "min_peak_alt_deg": 40.0, "scope_horizon_deg": 28.0}, "rig": {"scope": "Askar FRA600 + reducer", "f_ratio": 3.9, "focal_length_mm": 397.0, "camera": "Player One Poseidon-M Pro (IMX571, APS-C mono)", "sensor_w_mm": 23.5, "sensor_h_mm": 15.7, "pixel_um": 3.76, "filters": "Ha 3nm, OIII 3nm, SII 3nm"}};
+const SEED = [{"id": "sh2-129", "name": "Sh2-129", "common_name": "Flying Bat", "type": "HII region", "ra_deg": 318.4, "dec_deg": 59.97, "size_major_arcmin": 140, "size_minor_arcmin": null, "emission": "Ha", "surface_brightness": "medium", "novelty": "underexposed", "low_precision": false, "ref_url": "https://deepskycorner.ch/obj/sh2-129.en.php", "note": "~2.3 deg Ha shell; hosts the faint OIII 'Squid' Ou4. Premier Ha+OIII bicolor field."}, {"id": "ou4", "name": "Ou4", "common_name": "Giant Squid", "type": "Bipolar outflow / PN cand", "ra_deg": 317.95, "dec_deg": 59.5, "size_major_arcmin": 69, "size_minor_arcmin": 20, "emission": "OIII", "surface_brightness": "vfaint", "novelty": "recent", "low_precision": true, "ref_url": "https://apod.nasa.gov/apod/ap240617.html", "note": "Near-pure OIII bipolar ~1.2 deg inside Sh2-129. Discovered 2011 (N. Outters). Very faint."}, {"id": "sh2-155", "name": "Sh2-155", "common_name": "Cave", "type": "HII region", "ra_deg": 344.275, "dec_deg": 62.636, "size_major_arcmin": 50, "size_minor_arcmin": null, "emission": "Ha", "surface_brightness": "medium", "novelty": "underexposed", "low_precision": false, "ref_url": "https://en.wikipedia.org/wiki/Sh2-155", "note": "Bright rim knot inside a larger complex; SHO friendly."}, {"id": "sh2-157", "name": "Sh2-157", "common_name": "Lobster Claw", "type": "HII region", "ra_deg": 349.017, "dec_deg": 60.034, "size_major_arcmin": 60, "size_minor_arcmin": null, "emission": "Ha", "surface_brightness": "medium", "novelty": "underexposed", "low_precision": false, "ref_url": "https://deepskycorner.ch/obj/sh2-157.en.php", "note": "Ha body with an OIII-responsive rim; frames with NGC 7538/bubble region."}, {"id": "sh2-132", "name": "Sh2-132", "common_name": "Lion", "type": "HII region", "ra_deg": 334.0, "dec_deg": 55.883, "size_major_arcmin": 42, "size_minor_arcmin": 30, "emission": "Ha", "surface_brightness": "medium", "novelty": "underexposed", "low_precision": false, "ref_url": "https://en.wikipedia.org/wiki/Sh_2-132", "note": "Strong SII as well as Ha -> excellent SHO subject; two WR stars inside."}, {"id": "ngc7822", "name": "NGC 7822", "common_name": "Cederblad 214 / Sh2-171", "type": "HII region", "ra_deg": 0.286, "dec_deg": 67.421, "size_major_arcmin": 100, "size_minor_arcmin": null, "emission": "Ha", "surface_brightness": "medium", "novelty": "underexposed", "low_precision": false, "ref_url": "https://en.wikipedia.org/wiki/NGC_7822", "note": "Large Ha complex with sculpted pillars; classic SHO field, high dec (circumpolar-ish)."}, {"id": "sh2-101", "name": "Sh2-101", "common_name": "Tulip", "type": "HII region", "ra_deg": 300.122, "dec_deg": 35.32, "size_major_arcmin": 16, "size_minor_arcmin": 9, "emission": "Ha", "surface_brightness": "bright", "novelty": "underexposed", "low_precision": false, "ref_url": "https://en.wikipedia.org/wiki/Sh_2-101", "note": "Compact bright Ha; Cygnus X-1 microquasar jet region nearby. Easy win."}, {"id": "ic1396", "name": "IC 1396", "common_name": "Elephant Trunk region", "type": "HII region", "ra_deg": 324.725, "dec_deg": 57.489, "size_major_arcmin": 170, "size_minor_arcmin": 140, "emission": "Ha", "surface_brightness": "medium", "novelty": "underexposed", "low_precision": false, "ref_url": "https://deepskycorner.ch/obj/ic1396.en.php", "note": "Huge ~2.5 deg region; the trunk (IC1396A) is the highlight. Fills the field."}, {"id": "sh2-115", "name": "Sh2-115", "common_name": null, "type": "HII region", "ra_deg": 308.758, "dec_deg": 47.04, "size_major_arcmin": 14, "size_minor_arcmin": null, "emission": "Ha", "surface_brightness": "medium", "novelty": "underexposed", "low_precision": false, "ref_url": "https://en.wikipedia.org/wiki/Sh_2-115", "note": "Near Berkeley 90; pairs with PN Abell 71 (Sh2-116) in-field."}, {"id": "sh2-114", "name": "Sh2-114", "common_name": "Flying Dragon", "type": "HII region", "ra_deg": 320.3, "dec_deg": 38.7, "size_major_arcmin": 60, "size_minor_arcmin": 20, "emission": "Ha", "surface_brightness": "faint", "novelty": "underexposed", "low_precision": false, "ref_url": "https://en.wikipedia.org/wiki/Sh_2-114", "note": "Long very-dim Ha filament; deep wide-field Ha only."}, {"id": "sh2-119", "name": "Sh2-119", "common_name": "Clamshell", "type": "HII region", "ra_deg": 319.5, "dec_deg": 43.933, "size_major_arcmin": 70, "size_minor_arcmin": null, "emission": "Ha", "surface_brightness": "medium", "novelty": "underexposed", "low_precision": false, "ref_url": "https://stellarscenes.net/object_e/sh2_119.htm", "note": "East of the North America Nebula; strong OIII-responsive ionization rim."}, {"id": "sh2-124", "name": "Sh2-124", "common_name": null, "type": "HII region", "ra_deg": 324.5, "dec_deg": 50.333, "size_major_arcmin": 47, "size_minor_arcmin": 31, "emission": "Ha", "surface_brightness": "medium", "novelty": "underexposed", "low_precision": false, "ref_url": "https://www.astroworldcreations.com/image-details/sh2-124", "note": "Isolated ~0.75 deg region rich in Ha + SII; excellent SHO subject at your scale."}, {"id": "sh2-126", "name": "Sh2-126", "common_name": "Great Lacerta / Gecko", "type": "HII complex", "ra_deg": 338.5, "dec_deg": 40.5, "size_major_arcmin": 180, "size_minor_arcmin": null, "emission": "Ha", "surface_brightness": "faint", "novelty": "underexposed", "low_precision": true, "ref_url": "https://www.distant-luminosity.com/sh2-126.html", "note": ">3 deg faint Ha complex over LBN 437; borderline wide-field, may want a 2-panel mosaic."}, {"id": "sh2-232", "name": "Sh2-232", "common_name": null, "type": "HII region", "ra_deg": 85.615, "dec_deg": 36.142, "size_major_arcmin": 30, "size_minor_arcmin": null, "emission": "Ha", "surface_brightness": "medium", "novelty": "underexposed", "low_precision": false, "ref_url": "https://stellarscenes.net/object_e/sh2_232.htm", "note": "Frames well as an Auriga mosaic with Sh2-231/233/235."}, {"id": "sh2-54", "name": "Sh2-54", "common_name": null, "type": "HII region", "ra_deg": 274.929, "dec_deg": -12.067, "size_major_arcmin": 144, "size_minor_arcmin": 78, "emission": "Ha", "surface_brightness": "medium", "novelty": "underexposed", "low_precision": false, "ref_url": "https://stellarscenes.net/object_e/sh2_54.htm", "note": "Big ~2 deg Ha region containing NGC 6604; low southern culmination from your site."}, {"id": "sh2-82", "name": "Sh2-82", "common_name": "Little Cocoon", "type": "HII + reflection", "ra_deg": 292.597, "dec_deg": 18.284, "size_major_arcmin": 9, "size_minor_arcmin": null, "emission": "Ha", "surface_brightness": "medium", "novelty": "underexposed", "low_precision": false, "ref_url": "https://stellarscenes.net/object_e/sh2_82.htm", "note": "Small Ha knot with a blue reflection component; wants long FL, Ha+RGB better than pure NB."}, {"id": "sh2-86", "name": "Sh2-86", "common_name": "NGC 6820 / Vul OB1", "type": "HII region", "ra_deg": 295.79, "dec_deg": 23.26, "size_major_arcmin": 40, "size_minor_arcmin": null, "emission": "Ha", "surface_brightness": "medium", "novelty": "underexposed", "low_precision": false, "ref_url": "http://galaxymap.org/cat/view/sharpless/86", "note": "Bright Ha with NGC 6820/6823; classic ~40' SHO framing."}, {"id": "sh2-188", "name": "Sh2-188", "common_name": "Dusty Hand / Shrimp", "type": "Planetary nebula", "ra_deg": 22.638, "dec_deg": 58.414, "size_major_arcmin": 15, "size_minor_arcmin": null, "emission": "Ha", "surface_brightness": "medium", "novelty": "underexposed", "low_precision": false, "ref_url": "https://www.constellation-guide.com/shrimp-nebula-sh2-188/", "note": "Asymmetric bow-shock PN; bright Ha arc, secondary OIII. High dec."}, {"id": "simeis147", "name": "Sh2-240", "common_name": "Simeis 147 / Spaghetti", "type": "SNR", "ra_deg": 84.775, "dec_deg": 27.999, "size_major_arcmin": 180, "size_minor_arcmin": null, "emission": "Ha", "surface_brightness": "vfaint", "novelty": "underexposed", "low_precision": false, "ref_url": "https://en.wikipedia.org/wiki/Simeis_147", "note": "~3 deg filamentary SNR; superb Ha+OIII but very faint, fills/exceeds the field."}, {"id": "veil-loop", "name": "Cygnus Loop", "common_name": "Veil complex (whole loop)", "type": "SNR", "ra_deg": 312.75, "dec_deg": 30.667, "size_major_arcmin": 230, "size_minor_arcmin": 160, "emission": "OIII", "surface_brightness": "medium", "novelty": "classic", "low_precision": false, "ref_url": "https://www.mrao.cam.ac.uk/surveys/snrs/snrs.G74.0-8.5.html", "note": "Whole loop ~3.8x2.7 deg; the entire Veil roughly fills your field for a single-frame classic."}, {"id": "ngc6960", "name": "NGC 6960", "common_name": "Western Veil / Witch's Broom", "type": "SNR segment", "ra_deg": 311.49, "dec_deg": 30.595, "size_major_arcmin": 70, "size_minor_arcmin": 6, "emission": "OIII", "surface_brightness": "bright", "novelty": "classic", "low_precision": false, "ref_url": "https://theskylive.com/sky/deepsky/ngc6960-veil-nebula-object", "note": "Bright OIII+Ha filament by 52 Cyg; easy, high-detail."}, {"id": "ngc6992", "name": "NGC 6992", "common_name": "Eastern Veil", "type": "SNR segment", "ra_deg": 314.075, "dec_deg": 31.743, "size_major_arcmin": 60, "size_minor_arcmin": 8, "emission": "OIII", "surface_brightness": "bright", "novelty": "classic", "low_precision": false, "ref_url": "https://theskylive.com/sky/deepsky/ngc6992-object", "note": "Bright OIII+Ha; the other easy Veil win."}, {"id": "ctb1", "name": "CTB 1", "common_name": "Abell 85", "type": "SNR", "ra_deg": 359.792, "dec_deg": 62.433, "size_major_arcmin": 34, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "faint", "novelty": "underexposed", "low_precision": false, "ref_url": "https://www.mrao.cam.ac.uk/surveys/snrs/snrs.G116.9+0.2.html", "note": "Ha shell with a striking OIII arc/blow-out; compact enough to frame well."}, {"id": "g65", "name": "G65.3+5.7", "common_name": null, "type": "SNR", "ra_deg": 293.25, "dec_deg": 31.167, "size_major_arcmin": 310, "size_minor_arcmin": 240, "emission": "OIII", "surface_brightness": "vfaint", "novelty": "underexposed", "low_precision": true, "ref_url": "https://www.mrao.cam.ac.uk/surveys/snrs/snrs.G65.3+5.7.html", "note": "Huge ~5 deg faint OIII+Ha remnant in Cygnus; mosaic/camera-lens object."}, {"id": "sh2-224", "name": "Sh2-224", "common_name": "VRO 42.05.01", "type": "SNR", "ra_deg": 81.7, "dec_deg": 42.96, "size_major_arcmin": 55, "size_minor_arcmin": 35, "emission": "Ha", "surface_brightness": "faint", "novelty": "underexposed", "low_precision": false, "ref_url": "https://www.mrao.cam.ac.uk/surveys/snrs/snrs.G166.0+4.3.html", "note": "~1 deg faint remnant with distinctive 'wing'; rewarding Ha/OIII bicolor."}, {"id": "hb9", "name": "HB9", "common_name": "G160.9+2.6", "type": "SNR", "ra_deg": 75.25, "dec_deg": 46.667, "size_major_arcmin": 140, "size_minor_arcmin": 120, "emission": "Ha", "surface_brightness": "vfaint", "novelty": "underexposed", "low_precision": true, "ref_url": "https://www.mrao.cam.ac.uk/surveys/snrs/snrs.G160.9+2.6.html", "note": "~2.3 deg dual-band remnant; delicate Ha filaments + OIII arcs, fits the field."}, {"id": "w63", "name": "W63", "common_name": "G82.2+5.3", "type": "SNR", "ra_deg": 304.75, "dec_deg": 45.5, "size_major_arcmin": 95, "size_minor_arcmin": 65, "emission": "OIII", "surface_brightness": "faint", "novelty": "underexposed", "low_precision": false, "ref_url": "https://www.mrao.cam.ac.uk/surveys/snrs/snrs.G82.2+5.3.html", "note": "Cygnus-Loop-style faint arcs in Ha and OIII."}, {"id": "g206", "name": "G206.9+2.3", "common_name": "PKS 0646+06", "type": "SNR", "ra_deg": 102.167, "dec_deg": 6.433, "size_major_arcmin": 60, "size_minor_arcmin": 40, "emission": "Ha", "surface_brightness": "vfaint", "novelty": "underexposed", "low_precision": true, "ref_url": "https://www.mrao.cam.ac.uk/surveys/snrs/snrs.G206.9+2.3.html", "note": "Very faint diffuse Ha remnant in Monoceros; deep-Ha challenge."}, {"id": "g156", "name": "G156.2+5.7", "common_name": null, "type": "SNR", "ra_deg": 74.667, "dec_deg": 51.833, "size_major_arcmin": 110, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "vfaint", "novelty": "underexposed", "low_precision": true, "ref_url": "https://www.mrao.cam.ac.uk/surveys/snrs/snrs.G156.2+5.7.html", "note": "Thin OIII/Ha filaments; expert deep-NB object, high dec."}, {"id": "w50", "name": "W50", "common_name": "SS 433 / Manatee", "type": "SNR", "ra_deg": 288.083, "dec_deg": 4.917, "size_major_arcmin": 120, "size_minor_arcmin": 60, "emission": "Ha", "surface_brightness": "vfaint", "novelty": "underexposed", "low_precision": true, "ref_url": "https://www.mrao.cam.ac.uk/surveys/snrs/snrs.G39.7-2.0.html", "note": "Faint Ha shell around the SS 433 microquasar; wide-field Ha under dark skies."}, {"id": "mon-loop", "name": "G205.5+0.5", "common_name": "Monoceros Loop", "type": "SNR", "ra_deg": 99.75, "dec_deg": 6.5, "size_major_arcmin": 220, "size_minor_arcmin": null, "emission": "Ha", "surface_brightness": "vfaint", "novelty": "underexposed", "low_precision": true, "ref_url": "https://www.mrao.cam.ac.uk/surveys/snrs/snrs.G205.5+0.5.html", "note": "Huge ~3.7 deg very-low-SB Ha shell by the Rosette; wide-field Ha, exceeds the frame."}, {"id": "nereides", "name": "G107.7-5.1", "common_name": "Nereides", "type": "SNR candidate", "ra_deg": 345.95, "dec_deg": 54.55, "size_major_arcmin": 150, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "vfaint", "novelty": "recent", "low_precision": true, "ref_url": "https://arxiv.org/html/2403.00317v2", "note": "~2.5 deg delicate pure-OIII filament shell in Cassiopeia (Falls & Drechsler 2022-23)."}, {"id": "atlas", "name": "G209.9-8.2", "common_name": "Atlas", "type": "SNR candidate", "ra_deg": 94.13, "dec_deg": -1.05, "size_major_arcmin": 100, "size_minor_arcmin": 108, "emission": "OIII", "surface_brightness": "vfaint", "novelty": "recent", "low_precision": true, "ref_url": "https://arxiv.org/html/2403.00317v2", "note": "Nearly complete ~1.8 deg OIII shell near Ori/Mon border (Drechsler & Falls 2023)."}, {"id": "g210", "name": "G210.5+1.3", "common_name": null, "type": "SNR candidate", "ra_deg": 102.96, "dec_deg": 2.75, "size_major_arcmin": 24, "size_minor_arcmin": 18, "emission": "Ha", "surface_brightness": "faint", "novelty": "recent", "low_precision": true, "ref_url": "https://arxiv.org/html/2403.00317v2", "note": "The set's strongest Ha/SII SNR candidate; easily framed SHO subject (Drechsler/Strottner/Falls 2023)."}, {"id": "scylla", "name": "Scylla", "common_name": "G115.5+9.1", "type": "SNR candidate", "ra_deg": 350.19, "dec_deg": 70.65, "size_major_arcmin": 90, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "vfaint", "novelty": "recent", "low_precision": true, "ref_url": "https://apod.nasa.gov/apod/ap250609.html", "note": "Freshly announced 2025 Cepheus SNR (Drechsler/Sainty/Soto et al.); coords/size provisional."}, {"id": "pa30", "name": "Pa 30", "common_name": "SN 1181 / Parker's Star remnant", "type": "SN Iax remnant", "ra_deg": 13.297, "dec_deg": 67.501, "size_major_arcmin": 3, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "faint", "novelty": "recent", "low_precision": false, "ref_url": "https://academic.oup.com/mnras/article/520/1/773/6759436", "note": "Only imaged Type-Iax remnant; OIII shell + radial SII 'dandelion' filaments. Small, flagship OIII+SII."}, {"id": "ngc6888", "name": "NGC 6888", "common_name": "Crescent", "type": "WR bubble", "ra_deg": 303.029, "dec_deg": 38.355, "size_major_arcmin": 18, "size_minor_arcmin": 12, "emission": "Ha", "surface_brightness": "bright", "novelty": "classic", "low_precision": false, "ref_url": "https://en.wikipedia.org/wiki/Crescent_Nebula", "note": "Bright Ha body with a strong OIII shell; textbook SHO/HOO target."}, {"id": "sh2-308", "name": "Sh2-308", "common_name": "Dolphin Head", "type": "WR bubble", "ra_deg": 103.554, "dec_deg": -23.928, "size_major_arcmin": 35, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "faint", "novelty": "underexposed", "low_precision": false, "ref_url": "https://www.constellation-guide.com/dolphin-head-nebula-sh2-308/", "note": "Big spherical OIII WR shell; superb but low southern culmination from your site."}, {"id": "ngc2359", "name": "NGC 2359", "common_name": "Thor's Helmet", "type": "WR bubble", "ra_deg": 109.625, "dec_deg": -13.227, "size_major_arcmin": 22, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "medium", "novelty": "underexposed", "low_precision": false, "ref_url": "https://en.wikipedia.org/wiki/NGC_2359", "note": "Premier bicolor WR bubble; strong OIII with Ha/SII detail."}, {"id": "wr134", "name": "WR 134", "common_name": "WR 134 ring", "type": "WR shell", "ra_deg": 302.559, "dec_deg": 36.176, "size_major_arcmin": 10, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "faint", "novelty": "underexposed", "low_precision": false, "ref_url": "https://en.wikipedia.org/wiki/WR_134", "note": "One of Cygnus's finest OIII partial-ring/arc targets, centered on the WR star."}, {"id": "abell31", "name": "Abell 31", "common_name": null, "type": "Planetary nebula", "ra_deg": 133.548, "dec_deg": 8.908, "size_major_arcmin": 16, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "faint", "novelty": "underexposed", "low_precision": false, "ref_url": "https://en.wikipedia.org/wiki/Abell_31", "note": "Large low-SB OIII PN; wide field ideal, good spring filler."}, {"id": "abell33", "name": "Abell 33", "common_name": "Diamond Ring", "type": "Planetary nebula", "ra_deg": 144.788, "dec_deg": -2.81, "size_major_arcmin": 4.5, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "faint", "novelty": "underexposed", "low_precision": false, "ref_url": "https://en.wikipedia.org/wiki/Abell_33", "note": "Clean blue OIII ring with a bright foreground 'diamond' star."}, {"id": "abell39", "name": "Abell 39", "common_name": null, "type": "Planetary nebula", "ra_deg": 246.891, "dec_deg": 27.909, "size_major_arcmin": 2.6, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "faint", "novelty": "underexposed", "low_precision": false, "ref_url": "https://en.wikipedia.org/wiki/Abell_39", "note": "Near-perfect spherical OIII shell; small, wants long FL but a lovely HOO."}, {"id": "jner1", "name": "Jones-Emberson 1", "common_name": "Headphone", "type": "Planetary nebula", "ra_deg": 119.465, "dec_deg": 53.421, "size_major_arcmin": 6.7, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "faint", "novelty": "underexposed", "low_precision": false, "ref_url": "https://en.wikipedia.org/wiki/Jones-Emberson_1", "note": "Bright twin-lobe OIII in Lynx; excellent mid-wide OIII subject."}, {"id": "hfg1", "name": "HFG1", "common_name": "Heckathorn-Fesen-Gull 1", "type": "Planetary nebula", "ra_deg": 45.744, "dec_deg": 64.836, "size_major_arcmin": 8, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "faint", "novelty": "underexposed", "low_precision": false, "ref_url": "https://en.wikipedia.org/wiki/HFG1", "note": "Bow-shock PN: blue OIII arc + long red Ha trail. NOT Sh2-200. Pairs with Abell 6 in-field."}, {"id": "medusa", "name": "Abell 21", "common_name": "Medusa / Sh2-274", "type": "Planetary nebula", "ra_deg": 112.261, "dec_deg": 13.247, "size_major_arcmin": 10.3, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "faint", "novelty": "underexposed", "low_precision": false, "ref_url": "https://en.wikipedia.org/wiki/Medusa_Nebula", "note": "Large OIII+Ha crescent in Gemini; great wide-ish OIII target."}, {"id": "abell6", "name": "Abell 6", "common_name": null, "type": "Planetary nebula", "ra_deg": 44.5, "dec_deg": 64.5, "size_major_arcmin": 3.1, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "faint", "novelty": "underexposed", "low_precision": false, "ref_url": "https://in-the-sky.org/data/object.php?id=Abell_6", "note": "Round OIII shell in Cassiopeia; pairs with HFG1 in a wide frame."}, {"id": "puwe1", "name": "PuWe 1", "common_name": "Purgathofer-Weinberger 1", "type": "Planetary nebula", "ra_deg": 94.891, "dec_deg": 55.612, "size_major_arcmin": 21, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "vfaint", "novelty": "underexposed", "low_precision": false, "ref_url": "https://www.imagingdeepspace.com/puwe-1.html", "note": "One of the largest/faintest PNe (~21'); big OIII arc, needs dark sky + long integration."}, {"id": "k1-16", "name": "K 1-16", "common_name": "Kohoutek 1-16", "type": "Planetary nebula", "ra_deg": 275.467, "dec_deg": 64.365, "size_major_arcmin": 1.9, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "faint", "novelty": "underexposed", "low_precision": false, "ref_url": "https://www.imagingdeepspace.com/k1-16.html", "note": "Very high excitation -> strong OIII / weak Ha; small, best at long FL."}, {"id": "sh2-71", "name": "Sh2-71", "common_name": null, "type": "Planetary nebula", "ra_deg": 285.25, "dec_deg": 2.156, "size_major_arcmin": 2.5, "size_minor_arcmin": 1.3, "emission": "Ha", "surface_brightness": "medium", "novelty": "underexposed", "low_precision": false, "ref_url": "https://en.wikipedia.org/wiki/Sh_2-71", "note": "Bright bipolar in Aquila (Dec is +2.16, not -2). Ha-led with an OIII core."}, {"id": "ou5", "name": "Ou 5", "common_name": "Outters 5", "type": "Planetary nebula", "ra_deg": 318.583, "dec_deg": 43.693, "size_major_arcmin": 0.8, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "faint", "novelty": "recent", "low_precision": false, "ref_url": "https://en.wikipedia.org/wiki/Ou_5", "note": "Small bright bipolar OIII in Cygnus (Outters 2012); long FL only."}, {"id": "abell72", "name": "Abell 72", "common_name": null, "type": "Planetary nebula", "ra_deg": 312.5, "dec_deg": 13.55, "size_major_arcmin": 2.1, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "faint", "novelty": "underexposed", "low_precision": false, "ref_url": "https://in-the-sky.org/data/object.php?id=Abell_72", "note": "Compact OIII ring in Delphinus; moderate FL suits it."}, {"id": "ngc1360", "name": "NGC 1360", "common_name": "Robin's Egg", "type": "Planetary nebula", "ra_deg": 53.311, "dec_deg": -25.872, "size_major_arcmin": 11, "size_minor_arcmin": 7.5, "emission": "OIII", "surface_brightness": "bright", "novelty": "underexposed", "low_precision": false, "ref_url": "https://en.wikipedia.org/wiki/NGC_1360", "note": "Big bright OIII PN; sits at your southern Dec edge (peaks ~40 deg) but a bright easy win."}, {"id": "stdr1", "name": "StDr 1", "common_name": "Coco's Nebula", "type": "Planetary nebula", "ra_deg": 88.462, "dec_deg": 24.041, "size_major_arcmin": 9, "size_minor_arcmin": null, "emission": "Ha", "surface_brightness": "faint", "novelty": "recent", "low_precision": false, "ref_url": "https://www.imagingdeepspace.com/stdr1.html", "note": "Bright compact core + big faint Ha halo w/ OIII shell (Strottner & Drechsler 2019)."}, {"id": "stdr4", "name": "StDr 4", "common_name": null, "type": "Planetary nebula cand", "ra_deg": 325.375, "dec_deg": 55.798, "size_major_arcmin": 3, "size_minor_arcmin": 2.3, "emission": "SII", "surface_brightness": "faint", "novelty": "recent", "low_precision": false, "ref_url": "https://www.imagingdeepspace.com/stdr-4.html", "note": "Rare SII-DOMINANT (shock-excited) PN -> a genuine SHO showcase; small trophy-detail target."}, {"id": "stdr16", "name": "StDr 16", "common_name": "PN G039.1-04.5", "type": "Planetary nebula", "ra_deg": 289.711, "dec_deg": 3.456, "size_major_arcmin": 2.4, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "faint", "novelty": "recent", "low_precision": false, "ref_url": "https://www.imagingdeepspace.com/stdr-16.html", "note": "Small bright OIII+Ha PN; frame with surrounding Aquila Milky Way. Low southern dec."}, {"id": "stdr56", "name": "StDr 56", "common_name": "Goblet of Fire", "type": "Planetary nebula cand", "ra_deg": 31.822, "dec_deg": 30.087, "size_major_arcmin": 44, "size_minor_arcmin": 36, "emission": "Ha", "surface_brightness": "vfaint", "novelty": "recent", "low_precision": false, "ref_url": "https://www.syfy.com/syfy-wire/so-what-the-heck-is-stdr-56", "note": "Moon-sized (~0.7 deg) but extremely faint Ha+OIII; perfect scale for APS-C, needs 50-100h."}, {"id": "stdr99", "name": "StDr 99", "common_name": null, "type": "Planetary nebula cand", "ra_deg": 351.005, "dec_deg": 65.447, "size_major_arcmin": 17, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "vfaint", "novelty": "recent", "low_precision": false, "ref_url": "https://www.imagingdeepspace.com/stdr-99.html", "note": "17' faint OIII shell, circumpolar in Cepheus; weak OIII, genuinely hard."}, {"id": "stdr141", "name": "StDr 141", "common_name": "PN G115.9-13.5", "type": "Planetary nebula", "ra_deg": 2.59, "dec_deg": 48.787, "size_major_arcmin": 4.2, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "faint", "novelty": "recent", "low_precision": false, "ref_url": "https://www.imagingdeepspace.com/stdr-141.html", "note": "Compact balanced OIII+Ha PN near M31; easy bicolor with M31-area context."}, {"id": "stdr161", "name": "StDr 161", "common_name": null, "type": "Planetary nebula cand", "ra_deg": 308.126, "dec_deg": 51.193, "size_major_arcmin": 10, "size_minor_arcmin": 5, "emission": "Ha", "surface_brightness": "faint", "novelty": "recent", "low_precision": false, "ref_url": "https://www.imagingdeepspace.com/stdr-161-219114.html", "note": "Elongated 10x5' Ha nebula in Cygnus with OIII detail; good summer wide-field target."}, {"id": "pa5", "name": "Pa 5", "common_name": "PN G076.3+14.1", "type": "Planetary nebula", "ra_deg": 289.88, "dec_deg": 44.73, "size_major_arcmin": 2.6, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "faint", "novelty": "recent", "low_precision": false, "ref_url": "https://www.aapod2.com/blog/patchick-5", "note": "Compact fairly-bright OIII+Ha PN on the Lyra/Cygnus border (Patchick 2005)."}, {"id": "pa15", "name": "Pa 15", "common_name": "Little Blue Fox", "type": "Planetary nebula", "ra_deg": 307.282, "dec_deg": 23.186, "size_major_arcmin": 1.5, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "faint", "novelty": "recent", "low_precision": false, "ref_url": "https://academic.oup.com/mnras/article/520/1/773/6759436", "note": "Small GTC-confirmed OIII Patchick PN; bright-small, not wide-field."}, {"id": "sdso1", "name": "SDSO-1", "common_name": "Andromeda OIII arc", "type": "Giant OIII arc / bow shock", "ra_deg": 11.15, "dec_deg": 40.68, "size_major_arcmin": 100, "size_minor_arcmin": null, "emission": "OIII", "surface_brightness": "vfaint", "novelty": "recent", "low_precision": true, "ref_url": "https://skyandtelescope.org/astronomy-news/amateur-astronomers-find-glowing-gas-arc-near-andromeda/", "note": "Among the faintest imageable structures (~100h). Pure OIII; frame the field around M31 + EG And, coords are an anchor."}];            // built-in fallback catalogue
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONO=["J","F","M","A","M","J","J","A","S","O","N","D"];
+const D2R=Math.PI/180, R2D=180/Math.PI;
+
+/* ======================= rig geometry ======================= */
+const RIG=CONFIG.rig, SITE=CONFIG.site;
+RIG.fov_w_arcmin = 2*Math.atan(RIG.sensor_w_mm/(2*RIG.focal_length_mm))*R2D*60;
+RIG.fov_h_arcmin = 2*Math.atan(RIG.sensor_h_mm/(2*RIG.focal_length_mm))*R2D*60;
+RIG.fov_short = Math.min(RIG.fov_w_arcmin,RIG.fov_h_arcmin);
+RIG.fov_long  = Math.max(RIG.fov_w_arcmin,RIG.fov_h_arcmin);
+RIG.px = 206.265*RIG.pixel_um/RIG.focal_length_mm;
+
+/* ======================= astronomy ======================= */
+function jd(ms){ return ms/86400000 + 2440587.5; }
+function sunPos(JD){                       // low-precision sun RA/Dec (deg)
+  const n=JD-2451545.0;
+  let L=(280.460+0.9856474*n)%360; if(L<0)L+=360;
+  let g=((357.528+0.9856003*n)%360)*D2R;
+  const lam=(L + 1.915*Math.sin(g) + 0.020*Math.sin(2*g))*D2R;
+  const eps=(23.439-0.0000004*n)*D2R;
+  let ra=Math.atan2(Math.cos(eps)*Math.sin(lam),Math.cos(lam))*R2D; if(ra<0)ra+=360;
+  const dec=Math.asin(Math.sin(eps)*Math.sin(lam))*R2D;
+  return {ra,dec};
+}
+function gmst(JD){ let t=(280.46061837+360.98564736629*(JD-2451545.0))%360; return t<0?t+360:t; }
+function altOf(raDeg,decDeg,JD){            // altitude (deg) from site
+  const lst=(gmst(JD)+SITE.lon_deg)%360;
+  const H=((lst-raDeg)%360)*D2R;
+  const dec=decDeg*D2R, lat=SITE.lat_deg*D2R;
+  const s=Math.sin(lat)*Math.sin(dec)+Math.cos(lat)*Math.cos(dec)*Math.cos(H);
+  return Math.asin(Math.max(-1,Math.min(1,s)))*R2D;
+}
+function peakAlt(dec){ return 90-Math.abs(SITE.lat_deg-dec); }
+
+function labelMonths(idxs){
+  if(!idxs.length) return "not in darkness";
+  const s=new Set(idxs), runs=[];
+  for(let i=0;i<12;i++){ if(s.has(i)&&!s.has((i+11)%12)){ let j=i; const start=i;
+    while(s.has(j)){ j=(j+1)%12; if(j===start)break; } runs.push([start,(j+11)%12]); } }
+  return runs.map(([a,b])=>a===b?MONTHS[a]:MONTHS[a]+"-"+MONTHS[b]).join(", ");
+}
+function observability(t){
+  const peak=peakAlt(t.dec_deg);
+  const observable = peak>=SITE.min_peak_alt_deg;
+  const thresh = observable?SITE.min_peak_alt_deg:SITE.scope_horizon_deg;
+  const year=CONFIG.year||2026, step=20, n=Math.round(24*60/step);
+  const dark=[], nmax=[];
+  for(let m=0;m<12;m++){
+    const t0=Date.UTC(year,m,15,12,0,0);
+    let cnt=0, mx=0;
+    for(let i=0;i<n;i++){
+      const JD=jd(t0+i*step*60000);
+      const sa=(function(){const s=sunPos(JD);return altOf(s.ra,s.dec,JD);})();
+      if(sa<-18){
+        const a=altOf(t.ra_deg,t.dec_deg,JD);
+        if(a>thresh) cnt++;
+        if(a>mx) mx=a;
+      }
+    }
+    dark.push(+(cnt*step/60).toFixed(1));
+    nmax.push(+Math.max(0,mx).toFixed(1));
+  }
+  const mxh=Math.max(...dark);
+  const best = mxh<=0?[]:dark.map((h,i)=>h>=Math.max(1,0.6*mxh)?i:-1).filter(i=>i>=0);
+  return {peak:+peak.toFixed(1),observable,dark,nmax,best,bestLabel:labelMonths(best),peakDark:+mxh.toFixed(1)};
+}
+
+/* ======================= scoring (mirror of scoring.py) ======================= */
+const TOTAL={bright:[4,8],medium:[8,15],faint:[15,30],vfaint:[30,70]};
+const SUB={Ha:300,OIII:600,SII:600};
+function framing(size){
+  const fs=RIG.fov_short, fl=RIG.fov_long, frac=size/fs, pct=100*size/fs;
+  if(size>fl) return [pct,"Larger than frame - mosaic (2+ panels)",0.35];
+  if(frac>1.0) return [pct,"Fills / slightly exceeds short side - tight single frame",0.7];
+  if(frac>=0.30&&frac<=0.85) return [pct,"Ideal - fills the frame nicely with margin",1.0];
+  if(frac>=0.12&&frac<0.30) return [pct,"Comfortable - smallish but well framed",0.85];
+  if(frac<0.12) return [pct,"Small - usable but better at longer focal length",0.45];
+  return [pct,"Large - fills most of the frame",0.9];
+}
+function filtersFor(type,emi,sb){
+  const t=(type||"").toLowerCase(), e=(emi||"").toUpperCase();
+  if(e==="SII") return ["SII-led + Ha + OIII (rare shock-excited target)","SHO - weight SII heavily; it is the star here"];
+  if(/planetary|wr|wolf|bubble|arc|outflow/.test(t)) return e==="OIII"
+    ?["OIII (primary) + Ha; SII optional/weak","HOO bicolor (OIII as blue/green, Ha as red)"]
+    :["Ha + OIII both strong; SII for accent","HOO or SHO - both work"];
+  if(/snr|remnant/.test(t)) return ["OIII + Ha co-lead; SII light","HOO usually best; SHO if SII shows"];
+  if(e==="HA") return ["Ha (primary) + SII + OIII","SHO (Hubble) - classic; OIII often only on rims"];
+  return ["Ha + OIII + SII","SHO"];
+}
+function integ(sb,emi,type){
+  let [lo,hi]=TOTAL[sb]||[10,20]; const e=(emi||"").toUpperCase(), t=(type||"").toLowerCase();
+  if(e==="OIII"&&(sb==="faint"||sb==="vfaint")) hi=Math.round(hi*1.2);
+  let parts=[];
+  if(e==="HA"||/hii|snr|wr|bubble/.test(t)) parts.push("Ha "+SUB.Ha+"s");
+  parts.push("OIII "+SUB.OIII+"s");
+  if((sb==="bright"||sb==="medium")&&e!=="SII") parts.push("SII "+SUB.SII+"s");
+  else if(e==="SII") parts=["SII "+SUB.SII+"s","Ha "+SUB.Ha+"s","OIII "+SUB.OIII+"s"];
+  return [lo+"-"+hi+" h total", parts.join(" / ")];
+}
+function moon(emi,sb){
+  const e=(emi||"").toUpperCase();
+  if(e==="OIII"||sb==="faint"||sb==="vfaint") return "High - shoot OIII/faint data on moonless nights (<40% illum)";
+  if(e==="SII") return "Low-moderate - SII tolerates some moon";
+  return "Moderate - Ha is moon-tolerant; save OIII for dark nights";
+}
+const DIFF={bright:"Easy",medium:"Moderate",faint:"Hard",vfaint:"Very hard / expert"};
+const NOV={classic:"Classic",underexposed:"Under-imaged",recent:"NEW (recent discovery)"};
+function scoreRow(t,obs){
+  const [pct,frv,fsc]=framing(+t.size_major_arcmin);
+  const [fl,pal]=filtersFor(t.type,t.emission,t.surface_brightness);
+  const [tot,sub]=integ(t.surface_brightness,t.emission,t.type);
+  const a=Math.max(0.05,Math.min(1,(obs.peak-35)/50));
+  const s={bright:1,medium:.75,faint:.5,vfaint:.3}[t.surface_brightness]??0.6;
+  const d=Math.max(0,Math.min(1,obs.peakDark/6));
+  const score = obs.observable?+(100*(0.30*s+0.25*a+0.25*fsc+0.20*d)).toFixed(1):0;
+  return {fov_fit_pct:Math.round(pct),framing:frv,filters:fl,palette:pal,sub_len:sub,
+    total_integration:tot,moon_sensitivity:moon(t.emission,t.surface_brightness),
+    difficulty:DIFF[t.surface_brightness]||"Moderate",score,
+    score_breakdown:`bright ${s.toFixed(2)} x0.30 | alt ${a.toFixed(2)} x0.25 | frame ${fsc.toFixed(2)} x0.25 | darktime ${d.toFixed(2)} x0.20`};
+}
+
+/* ======================= SVG: framing + altitude (mirror of framing.py) ======================= */
+const EMIC={Ha:"#f2705c",OIII:"#5ec8ff",SII:"#c58cff"};
+function niceBar(ref){ const c=[[2,"2 deg"],[1,"1 deg"],[0.5,"30'"],[1/6,"10'"],[1/12,"5'"],[1/60,"1'"]];
+  for(const [d,l] of c) if(d<=ref*0.5) return [d,l]; return [1/60,"1'"]; }
+function framingSVG(t,fill){
+  const W=340, fw=RIG.fov_w_arcmin/60, fh=RIG.fov_h_arcmin/60;
+  const maj=(+t.size_major_arcmin)/60, mn=t.size_minor_arcmin?(+t.size_minor_arcmin)/60:maj;
+  const ref=Math.max(fw,fh,maj,mn)*1.18, draw=W-40, ppd=draw/ref, cx=W/2, cy=20+draw/2, H=Math.round(cy+draw/2+72);
+  const sw=fw*ppd, sh=fh*ppd, rx=Math.max(maj/2*ppd,2), ry=Math.max(mn/2*ppd,2), col=EMIC[t.emission]||"#9fb0c3";
+  const [sbd,sbl]=niceBar(ref), sbpx=sbd*ppd, over=maj>fh||maj>fw;
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <rect width="${W}" height="${H}" fill="#0b1017" rx="8"/>
+  <rect x="${(cx-sw/2).toFixed(1)}" y="${(cy-sh/2).toFixed(1)}" width="${sw.toFixed(1)}" height="${sh.toFixed(1)}" fill="none" stroke="#7f8ea3" stroke-width="1.5" stroke-dasharray="5 4"/>
+  <text x="${(cx-sw/2+3).toFixed(1)}" y="${(cy-sh/2-5).toFixed(1)}" fill="#9fb0c3" font-size="11">sensor ${fw.toFixed(2)} x ${fh.toFixed(2)} deg</text>
+  <ellipse cx="${cx}" cy="${cy}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="${col}" fill-opacity="0.22" stroke="${col}" stroke-width="1.6"/>
+  <g stroke="#5a6b7d" stroke-width="1.2" fill="#8aa0b6" font-size="10">
+   <line x1="${W-26}" y1="34" x2="${W-26}" y2="16"/><text x="${W-30}" y="13">N</text>
+   <line x1="${W-26}" y1="34" x2="${W-44}" y2="34"/><text x="${W-58}" y="38">E</text></g>
+  <g stroke="#9fb0c3" stroke-width="2"><line x1="20" y1="${H-40}" x2="${(20+sbpx).toFixed(1)}" y2="${H-40}"/>
+   <line x1="20" y1="${H-44}" x2="20" y2="${H-36}"/><line x1="${(20+sbpx).toFixed(1)}" y1="${H-44}" x2="${(20+sbpx).toFixed(1)}" y2="${H-36}"/></g>
+  <text x="20" y="${H-24}" fill="#9fb0c3" font-size="11">${sbl}</text>
+  <text x="${W-20}" y="${H-24}" text-anchor="end" fill="${col}" font-size="11">${t.name} - ${t.size_major_arcmin}' (${Math.round(fill)}%)${over?" - MOSAIC":""}</text>
+  </svg>`;
+}
+function altSVG(nmax,best,peak){
+  const W=340,H=185,L=34,R=12,T=26,B=22,iw=W-L-R,ih=H-T-B,n=12;
+  const xs=[...Array(n)].map((_,i)=>L+iw*i/(n-1));
+  const y=a=>T+ih*(1-Math.max(0,Math.min(90,a))/90);
+  const pts=xs.map((x,i)=>`${x.toFixed(1)},${y(nmax[i]).toFixed(1)}`).join(" ");
+  const area=`${xs[0].toFixed(1)},${y(0).toFixed(1)} ${pts} ${xs[n-1].toFixed(1)},${y(0).toFixed(1)}`;
+  const bs=new Set(best);
+  const bars=[...bs].map(i=>`<rect x="${(xs[i]-6).toFixed(1)}" y="${T}" width="12" height="${ih}" fill="#5ec8ff" opacity="0.07"/>`).join("");
+  const grid=[0,30,60,90].map(a=>`<line x1="${L}" y1="${y(a).toFixed(1)}" x2="${W-R}" y2="${y(a).toFixed(1)}" stroke="#202a37"/><text x="${L-5}" y="${(y(a)+3).toFixed(1)}" text-anchor="end" fill="#6b7a8d" font-size="9">${a}</text>`).join("");
+  const xl=xs.map((x,i)=>`<text x="${x.toFixed(1)}" y="${H-7}" text-anchor="middle" fill="#6b7a8d" font-size="9">${MONO[i]}</text>`).join("");
+  const dots=xs.map((x,i)=>`<circle cx="${x.toFixed(1)}" cy="${y(nmax[i]).toFixed(1)}" r="2.4" fill="${bs.has(i)?"#5ec8ff":"#7f8ea3"}"/>`).join("");
+  const g=SITE.min_peak_alt_deg, hz=SITE.scope_horizon_deg;
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <rect width="${W}" height="${H}" fill="#0b1017" rx="8"/>${bars}${grid}
+  <polygon points="${area}" fill="#5ec8ff" opacity="0.14"/>
+  <polyline points="${pts}" fill="none" stroke="#5ec8ff" stroke-width="2"/>${dots}
+  <line x1="${L}" y1="${y(g).toFixed(1)}" x2="${W-R}" y2="${y(g).toFixed(1)}" stroke="#4fd18b" stroke-width="1.3" stroke-dasharray="5 3"/>
+  <text x="${W-R}" y="${(y(g)-4).toFixed(1)}" text-anchor="end" fill="#4fd18b" font-size="9">${g} deg gate</text>
+  <line x1="${L}" y1="${y(hz).toFixed(1)}" x2="${W-R}" y2="${y(hz).toFixed(1)}" stroke="#f2b45c" stroke-width="1" stroke-dasharray="3 3" opacity="0.7"/>
+  <text x="${L+2}" y="${T-9}" fill="#9fb0c3" font-size="10">Max altitude in darkness (deg) - peaks ${peak.toFixed(0)} deg</text>${xl}</svg>`;
+}
+
+/* ======================= links ======================= */
+function links(name){
+  const q=encodeURIComponent('"'+name+'"');
+  return {ads:"https://ui.adsabs.harvard.edu/search/q="+q+"&sort=date+desc",
+          simbad:"https://simbad.u-strasbg.fr/simbad/sim-id?Ident="+encodeURIComponent(name)};
+}
+function raStr(ra){const h=ra/15,hh=h|0,m=(h-hh)*60,mm=m|0,ss=((m-mm)*60)|0;return `${String(hh).padStart(2,"0")} ${String(mm).padStart(2,"0")} ${String(ss).padStart(2,"0")}`;}
+function decStr(d){const s=d<0?"-":"+";d=Math.abs(d);const dd=d|0,m=(d-dd)*60,mm=m|0,ss=((m-mm)*60)|0;return `${s}${String(dd).padStart(2,"0")} ${String(mm).padStart(2,"0")} ${String(ss).padStart(2,"0")}`;}
+
+/* ======================= build records ======================= */
+function buildAll(rawTargets){
+  const recs=[];
+  for(const raw of rawTargets){
+    const t=normalize(raw); if(!t) continue;
+    const obs=observability(t);
+    if(!obs.observable) continue;
+    const sc=scoreRow(t,obs);
+    const fill=sc.fov_fit_pct;
+    const li=links(t.name);
+    recs.push(Object.assign({},t,{
+      ra_sx:raStr(t.ra_deg), dec_sx:decStr(t.dec_deg),
+      peak_alt_deg:obs.peak, best_months:obs.bestLabel, peak_dark_hours:obs.peakDark,
+      monthly_dark_hours:obs.dark, monthly_night_max_alt:obs.nmax,
+      novelty_label:NOV[t.novelty]||t.novelty||"", ref_url:t.ref_url||"",
+      ads_url:li.ads, simbad_url:li.simbad,
+      framing_svg:framingSVG(t,fill), alt_chart_svg:altSVG(obs.nmax,obs.best,obs.peak)
+    },sc));
+  }
+  recs.sort((a,b)=>b.score-a.score);
+  recs.forEach((r,i)=>r.rank=i+1);
+  return recs;
+}
+function num(v){const n=parseFloat(v);return isNaN(n)?null:n;}
+function normalize(raw){
+  const g=(...keys)=>{for(const k of keys){for(const kk of Object.keys(raw)){if(kk.trim().toLowerCase()===k){const v=raw[kk];if(v!==""&&v!=null)return v;}}}return null;};
+  const name=g("name","target","designation");
+  const ra=num(g("ra_deg","ra","radeg","ra(deg)")), dec=num(g("dec_deg","dec","decdeg","dec(deg)"));
+  const size=num(g("size_major_arcmin","size","size_arcmin","size(arcmin)","size'"));
+  if(!name||ra==null||dec==null||size==null) return null;
+  return {
+    id:(g("id")||name).toString().toLowerCase().replace(/\s+/g,"-"),
+    name:name.toString(),
+    common_name:g("common_name","common name","common")||null,
+    type:(g("type")||"Emission nebula").toString(),
+    ra_deg:ra, dec_deg:dec, size_major_arcmin:size,
+    size_minor_arcmin:num(g("size_minor_arcmin","size minor","minor")),
+    emission:(g("emission","nb","line")||"Ha").toString(),
+    surface_brightness:(g("surface_brightness","surface brightness","brightness","sb")||"faint").toString().toLowerCase(),
+    novelty:(g("novelty")||"underexposed").toString().toLowerCase(),
+    low_precision:/^(1|true|yes)$/i.test((g("low_precision","approx")||"").toString()),
+    ref_url:g("ref_url","reference","link","url","reference / info")||"",
+    note:g("note","notes","comment")||""
+  };
+}
+
+/* ======================= CSV parse ======================= */
+function parseCSV(text){
+  const rows=[]; let row=[],cur="",q=false;
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+    else{ if(c==='"')q=true; else if(c===","){row.push(cur);cur="";}
+      else if(c==="\n"){row.push(cur);rows.push(row);row=[];cur="";}
+      else if(c==="\r"){} else cur+=c; } }
+  if(cur!==""||row.length){row.push(cur);rows.push(row);}
+  if(!rows.length) return [];
+  const hdr=rows[0].map(h=>h.trim());
+  return rows.slice(1).filter(r=>r.some(x=>x.trim()!=="")).map(r=>{const o={};hdr.forEach((h,i)=>o[h]=(r[i]??"").trim());return o;});
+}
+
+/* ======================= data source ======================= */
+function sheetCsvUrl(){
+  const params=new URLSearchParams(location.search);
+  let src=params.get("sheet")||CONFIG.sheet_id||"";
+  if(!src) return null;
+  // accept a full URL or a bare ID
+  const m=src.match(/\/d\/([a-zA-Z0-9-_]+)/); const id=m?m[1]:src;
+  const gid=(params.get("gid")||CONFIG.sheet_gid||"0");
+  return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`;
+}
+let DATA=[];
+async function load(){
+  const st=document.getElementById("status");
+  const url=sheetCsvUrl();
+  if(url){
+    try{
+      const res=await fetch(url,{cache:"no-store"});
+      if(!res.ok) throw new Error("HTTP "+res.status);
+      const txt=await res.text();
+      const raw=parseCSV(txt);
+      const recs=buildAll(raw);
+      if(!recs.length) throw new Error("sheet parsed but no valid rows");
+      DATA=recs;
+      st.className="status ok";
+      st.innerHTML=`Live from Google Sheet · ${DATA.length} shootable targets · updated ${new Date().toLocaleString()}`;
+      finishRender(); return;
+    }catch(e){
+      DATA=buildAll(SEED);
+      st.className="status err";
+      st.innerHTML=`Couldn't read the Google Sheet (${e.message}). Showing the built-in catalogue. `+
+        `Check the sheet is shared "Anyone with the link – Viewer" and the ID/gid are correct.`;
+      finishRender(); return;
+    }
+  }
+  DATA=buildAll(SEED);
+  st.className="status warn";
+  st.innerHTML=`No Google Sheet configured yet — showing the built-in catalogue of ${DATA.length} targets. `+
+    `Add <code>?sheet=YOUR_SHEET_ID</code> to the URL, or set sheet_id in the file. See the README.`;
+  finishRender();
+}
+
+/* ======================= render (same UI as offline dashboard) ======================= */
+function scoreColor(s){return s>=70?"var(--good)":s>=50?"var(--mid)":"var(--bad)";}
+function novBadge(n){return n==="recent"?'<span class="badge b-new">NEW</span>':n==="underexposed"?'<span class="badge b-und">Under-imaged</span>':'<span class="badge b-cls">Classic</span>';}
+function emiDot(e){const c=e==="Ha"?"var(--ha)":e==="OIII"?"var(--oiii)":e==="SII"?"var(--sii)":"var(--mut)";return '<span class="dot" style="background:'+c+'"></span><span class="emi">'+e+'</span>';}
+function monthChips(arr){return '<div style="display:flex;gap:2px">'+arr.map((h,i)=>{const a=Math.min(1,h/6),on=h>=1;return '<span title="'+MONTHS[i]+': '+h+' dark h" style="width:9px;height:14px;border-radius:2px;background:'+(on?"rgba(94,200,255,"+(0.25+0.6*a)+")":"#1b2532")+'"></span>';}).join("")+"</div>";}
+let sortK="rank",sortAsc=true;
+function rowsFiltered(){
+  const v=id=>document.getElementById(id).value;
+  const ft=v("fType"),fn=v("fNov"),fd=v("fDiff"),fe=v("fEmi"),fm=v("fMonth"),fs=v("fSearch").toLowerCase();
+  let r=DATA.filter(d=>{
+    if(ft&&d.type!==ft)return false; if(fn&&d.novelty!==fn)return false;
+    if(fd&&d.difficulty!==fd)return false; if(fe&&d.emission!==fe)return false;
+    if(fs&&!((d.name+" "+(d.common_name||"")).toLowerCase().includes(fs)))return false;
+    if(fm!==""&&(d.monthly_dark_hours[+fm]||0)<1)return false; return true;});
+  r.sort((a,b)=>{let x=a[sortK],y=b[sortK];if(typeof x==="string"){x=x.toLowerCase();y=(y||"").toLowerCase();}return x<y?(sortAsc?-1:1):x>y?(sortAsc?1:-1):0;});
+  return r;
+}
+function render(){
+  const rows=rowsFiltered(),b=document.getElementById("body");b.innerHTML="";
+  rows.forEach(d=>{
+    const tr=document.createElement("tr");tr.className="main";
+    tr.innerHTML='<td class="expand" data-id="'+d.id+'"><span class="expbtn">▸ view</span></td>'+
+      "<td>"+d.rank+"</td>"+
+      '<td><span class="meter"><span style="width:'+d.score+'%;background:'+scoreColor(d.score)+'"></span></span><span class="scoreN" style="color:'+scoreColor(d.score)+'">'+d.score.toFixed(0)+"</span></td>"+
+      '<td><span class="nm">'+d.name+"</span>"+(d.common_name?'<br><span class="cm">'+d.common_name+"</span>":"")+"</td>"+
+      "<td>"+d.type+"</td><td>"+novBadge(d.novelty)+"</td>"+
+      '<td class="mono">'+d.ra_sx+"<br>"+d.dec_sx+"</td>"+
+      "<td>"+d.peak_alt_deg.toFixed(0)+" deg</td>"+
+      "<td>"+d.best_months+"<br>"+monthChips(d.monthly_dark_hours)+"</td>"+
+      "<td>"+emiDot(d.emission)+'<br><span class="cm">'+d.filters+'</span><br><span class="cm" style="color:var(--dim)">'+d.palette+"</span></td>"+
+      '<td class="subx">'+d.sub_len.replace(/ \/ /g,"<br>")+"</td>"+
+      "<td><b>"+d.total_integration.replace(" total","")+'</b><br><span class="cm">'+d.difficulty+"</span></td>"+
+      '<td class="lnk">'+(d.ref_url?'<a href="'+d.ref_url+'" target="_blank">info ↗</a><br>':"")+
+        '<a href="'+d.ads_url+'" target="_blank">papers (ADS) ↗</a><br><a href="'+d.simbad_url+'" target="_blank">SIMBAD ↗</a></td>';
+    b.appendChild(tr);
+    const dr=document.createElement("tr");dr.className="det";dr.style.display="none";dr.dataset.for=d.id;
+    dr.innerHTML='<td></td><td colspan="12"><div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">'+
+      '<div style="flex:0 0 auto">'+d.framing_svg+'<div class="cm" style="text-align:center;margin-top:2px">to-scale framing on your sensor</div></div>'+
+      '<div style="flex:0 0 auto">'+d.alt_chart_svg+'<div class="cm" style="text-align:center;margin-top:2px">annual altitude in darkness (rise &amp; drop)</div></div>'+
+      '<div class="grid" style="flex:1 1 320px">'+
+      "<div><b>Framing:</b> "+d.framing+" ("+d.fov_fit_pct+"% of short side, size "+d.size_major_arcmin+"')</div>"+
+      "<div><b>Moon:</b> "+d.moon_sensitivity+"</div>"+
+      "<div><b>Peak dark hours (best month):</b> "+d.peak_dark_hours+" h</div>"+
+      "<div><b>Emission:</b> "+d.emission+" &nbsp; <b>Surface brightness:</b> "+d.surface_brightness+" &nbsp; <b>Difficulty:</b> "+d.difficulty+"</div>"+
+      "<div><b>Score:</b> "+d.score+' <span class="cm">('+d.score_breakdown+")</span></div>"+
+      '<div style="grid-column:1/-1"><b>Notes:</b> '+(d.note||"")+(d.low_precision?' <span class="badge b-new">approx. center - plate-solve</span>':"")+"</div>"+
+      '<div style="grid-column:1/-1"><b>Links:</b> '+(d.ref_url?'<a href="'+d.ref_url+'" target="_blank">info/discovery</a> &nbsp;·&nbsp; ':"")+
+        '<a href="'+d.ads_url+'" target="_blank">NASA ADS literature search</a> &nbsp;·&nbsp; <a href="'+d.simbad_url+'" target="_blank">SIMBAD data page</a></div>'+
+      "</div></div></td>";
+    b.appendChild(dr);
+  });
+  document.getElementById("count").textContent=rows.length+" of "+DATA.length+" shown";
+}
+function finishRender(){
+  const s=CONFIG.site, r=RIG;
+  document.getElementById("subtitle").textContent=s.name+"  -  lat "+s.lat_deg.toFixed(3)+", lon "+s.lon_deg.toFixed(3)+"  -  min peak alt "+s.min_peak_alt_deg+" deg";
+  document.getElementById("tiles").innerHTML=
+    tile(DATA.length,"shootable targets","")+
+    tile(DATA.filter(d=>d.novelty==="recent").length,"recent discoveries","var(--new)")+
+    tile(DATA.filter(d=>d.difficulty==="Easy").length,"easy wins","var(--good)")+
+    tile(DATA.length?Math.max(...DATA.map(d=>d.score)).toFixed(0):"-","top score","");
+  document.getElementById("rig").innerHTML="<b>Rig:</b> "+r.scope+" @ f/"+r.f_ratio+" ("+r.focal_length_mm+" mm)  |  <b>Camera:</b> "+r.camera+
+    "  |  <b>Field:</b> "+(r.fov_w_arcmin/60).toFixed(2)+" x "+(r.fov_h_arcmin/60).toFixed(2)+" deg @ "+r.px.toFixed(2)+" arcsec/px  |  <b>Filters:</b> "+r.filters+
+    "<br><span style='color:var(--dim)'>Score = feasibility with THIS rig (0.30 surface brightness + 0.25 altitude + 0.25 framing + 0.20 dark-sky hours). Novelty is separate. Coordinates J2000; observability computed in-browser.</span>";
+  const ts=document.getElementById("fType");
+  [...new Set(DATA.map(d=>d.type))].sort().forEach(t=>{const o=document.createElement("option");o.value=t;o.textContent=t;ts.appendChild(o);});
+  const ms=document.getElementById("fMonth");MONTHS.forEach((m,i)=>{const o=document.createElement("option");o.value=i;o.textContent=m;ms.appendChild(o);});
+  document.getElementById("foot").textContent="Narrowband Target Scout (live) - "+DATA.length+" targets computed in your browser for "+s.name+". Reads your Google Sheet on load; edit the sheet and Refresh to update on any device.";
+  render(); const f=document.querySelector("#body .expand"); if(f)f.click();
+}
+function tile(v,k,c){return '<div class="tile"><div class="v"'+(c?' style="color:'+c+'"':"")+'>'+v+'</div><div class="k">'+k+"</div></div>";}
+
+document.getElementById("body").addEventListener("click",e=>{const ex=e.target.closest(".expand");if(!ex)return;
+  const dr=document.querySelector('.det[data-for="'+CSS.escape(ex.dataset.id)+'"]');const open=dr.style.display!=="none";
+  dr.style.display=open?"none":"table-row";const btn=ex.querySelector(".expbtn");if(btn)btn.textContent=open?"▸ view":"▾ hide";});
+document.querySelectorAll("th[data-k]").forEach(th=>{const k=th.dataset.k;if(k==="__exp")return;
+  th.addEventListener("click",()=>{if(sortK===k)sortAsc=!sortAsc;else{sortK=k;sortAsc=true;}render();});});
+["fType","fNov","fDiff","fMonth","fEmi"].forEach(id=>document.getElementById(id).addEventListener("change",render));
+document.getElementById("fSearch").addEventListener("input",render);
+document.getElementById("refresh").addEventListener("click",load);
+load();
+</script>
+</body></html>
