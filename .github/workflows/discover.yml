@@ -1,0 +1,155 @@
+name: Discover new narrowband targets
+
+# Runs in GitHub's cloud on a schedule (your PC can be off).
+# Sweeps professional survey catalogues (VizieR: Green SNR + WISE HII regions)
+# for objects observable from your site that aren't already on your list, and
+# commits them to discovered.csv, which the dashboard merges automatically.
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: '17 3 * * 1'      # every Monday ~03:17 UTC
+  workflow_dispatch: {}         # adds a "Run workflow" button for on-demand runs
+
+permissions:
+  contents: write               # allow the job to commit discovered.csv
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install --quiet astroquery astropy numpy
+
+      - name: Sweep survey catalogues
+        env:
+          SHEET_ID: "195T1JIu2wjIktx3s-ZRvT-XKf1ZM7BaoAJBia9beEMo"
+          SHEET_GID: "0"
+          SITE_LAT: "23.578079817186588"
+          MIN_PEAK_ALT: "40"
+          DEC_MIN: "-26.0"
+          DEC_MAX: "74.0"
+          MIN_SIZE_ARCMIN: "10"
+          MAX_TOTAL: "80"
+        run: |
+          python - <<'PY'
+          import os, csv, math, io, urllib.request
+
+          LAT=float(os.environ["SITE_LAT"]); MINPK=float(os.environ["MIN_PEAK_ALT"])
+          DMIN=float(os.environ["DEC_MIN"]); DMAX=float(os.environ["DEC_MAX"])
+          MINSZ=float(os.environ["MIN_SIZE_ARCMIN"]); MAXTOT=int(os.environ["MAX_TOTAL"])
+          SHEET_ID=os.environ.get("SHEET_ID",""); SHEET_GID=os.environ.get("SHEET_GID","0")
+
+          COLS=["name","common_name","type","ra_deg","dec_deg","size_major_arcmin",
+                "size_minor_arcmin","emission","surface_brightness","novelty",
+                "low_precision","ref_url","note"]
+
+          def observable(dec): return (90-abs(LAT-dec))>=MINPK
+          def sep(a,b): return math.hypot(a[0]-b[0], a[1]-b[1])
+
+          # ---- existing targets to dedupe against: current discovered.csv + your Google Sheet ----
+          existing_pos=[]; existing_names=set()
+          def add_existing(name, ra, dec):
+              if name: existing_names.add(name.strip().lower())
+              try: existing_pos.append((float(ra),float(dec)))
+              except: pass
+
+          if os.path.exists("discovered.csv"):
+              with open("discovered.csv", newline="") as f:
+                  for r in csv.DictReader(f):
+                      add_existing(r.get("name",""), r.get("ra_deg"), r.get("dec_deg"))
+          keep_existing_rows=[]
+          if os.path.exists("discovered.csv"):
+              with open("discovered.csv", newline="") as f:
+                  keep_existing_rows=[r for r in csv.DictReader(f)]
+
+          if SHEET_ID:
+              try:
+                  u=f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&gid={SHEET_GID}"
+                  txt=urllib.request.urlopen(u, timeout=30).read().decode("utf-8","replace")
+                  for r in csv.DictReader(io.StringIO(txt)):
+                      add_existing(r.get("name",""), r.get("ra_deg"), r.get("dec_deg"))
+                  print(f"[dedupe] loaded {len(existing_names)} existing names from sheet + discovered.csv")
+              except Exception as e:
+                  print(f"[dedupe] could not read sheet ({e}); deduping vs discovered.csv only")
+
+          # ---- pull survey catalogues ----
+          from astroquery.vizier import Vizier
+          def pull(cat_id, otype, emission, ref):
+              out=[]
+              try:
+                  v=Vizier(columns=["*","_RAJ2000","_DEJ2000"]); v.ROW_LIMIT=-1
+                  tabs=v.get_catalogs(cat_id)
+              except Exception as e:
+                  print(f"[vizier] {cat_id} failed: {e}"); return out
+              for t in tabs:
+                  cols={c.lower():c for c in t.colnames}
+                  rc=next((cols[k] for k in ("_raj2000","raj2000","radeg","ra") if k in cols), None)
+                  dc=next((cols[k] for k in ("_dej2000","dej2000","dedeg","de","dec") if k in cols), None)
+                  nc=next((cols[k] for k in ("snr","name","wname","gname","simbad","mwp") if k in cols), None)
+                  mj=next((cols[k] for k in ("majdiam","majaxis","diam","size","d25","width") if k in cols), None)
+                  rad=next((cols[k] for k in ("rad","radius","reff") if k in cols), None)
+                  if not rc or not dc: continue
+                  for row in t:
+                      try: ra=float(row[rc]); dec=float(row[dc])
+                      except: continue
+                      if not (DMIN<=dec<=DMAX) or not observable(dec): continue
+                      size=None
+                      if mj is not None:
+                          try: size=float(str(row[mj]).split("x")[0])
+                          except: size=None
+                      if size is None and rad is not None:
+                          try: size=2.0*float(row[rad])/ (60.0 if float(row[rad])>60 else 1.0)
+                          except: size=None
+                      if size is not None and size<MINSZ: continue
+                      name=(str(row[nc]).strip() if nc else "")
+                      if not name: name=f"{otype}-{ra:.3f}{dec:+.3f}"
+                      out.append({"name":name,"type":otype,"ra_deg":round(ra,5),"dec_deg":round(dec,5),
+                                  "size_major_arcmin":round(size,1) if size else 15,"emission":emission,
+                                  "ref_url":ref})
+              print(f"[vizier] {cat_id}: {len(out)} candidates in your sky window")
+              return out
+
+          cand=[]
+          cand+=pull("VII/284","SNR","OIII","https://vizier.cds.unistra.fr/viz-bin/VizieR?-source=VII/284")
+          cand+=pull("J/ApJS/212/1","HII region","Ha","https://vizier.cds.unistra.fr/viz-bin/VizieR?-source=J/ApJS/212/1")
+
+          # ---- dedupe by name and by sky position (<=0.2 deg) ----
+          new_rows=[]; added_pos=list(existing_pos)
+          for c in sorted(cand, key=lambda x:-x["size_major_arcmin"]):
+              if c["name"].strip().lower() in existing_names: continue
+              p=(c["ra_deg"],c["dec_deg"])
+              if any(sep(p,q)<0.2 for q in added_pos): continue
+              added_pos.append(p)
+              new_rows.append({"name":c["name"],"common_name":"","type":c["type"],
+                  "ra_deg":c["ra_deg"],"dec_deg":c["dec_deg"],
+                  "size_major_arcmin":c["size_major_arcmin"],"size_minor_arcmin":"",
+                  "emission":c["emission"],"surface_brightness":"faint","novelty":"recent",
+                  "low_precision":"TRUE","ref_url":c["ref_url"],
+                  "note":"Auto-found from a survey catalogue; size/emission estimated - verify & plate-solve."})
+              if len(keep_existing_rows)+len(new_rows)>=MAXTOT: break
+
+          all_rows=keep_existing_rows+new_rows
+          with open("discovered.csv","w",newline="") as f:
+              w=csv.DictWriter(f, fieldnames=COLS, extrasaction="ignore"); w.writeheader()
+              for r in all_rows: w.writerow(r)
+          print(f"[done] {len(new_rows)} new target(s) added; discovered.csv now has {len(all_rows)} rows")
+          PY
+
+      - name: Commit if changed
+        run: |
+          if [ -n "$(git status --porcelain discovered.csv)" ]; then
+            git config user.name "scout-bot"
+            git config user.email "actions@users.noreply.github.com"
+            git add discovered.csv
+            git commit -m "Auto-discovery: refresh survey candidates"
+            git push
+            echo "Committed updated discovered.csv"
+          else
+            echo "No changes to commit"
+          fi

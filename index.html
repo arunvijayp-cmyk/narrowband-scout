@@ -360,32 +360,47 @@ function sheetCsvUrl(){
   return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`;
 }
 let DATA=[];
+async function fetchCsvRaw(url){
+  try{ const r=await fetch(url,{cache:"no-store"}); if(!r.ok) return []; return parseCSV(await r.text()); }
+  catch(e){ return []; }
+}
+function mergeRaw(primary, extra){
+  const key=r=>String(r.name||r.Name||"").trim().toLowerCase();
+  const seen=new Set(primary.map(key).filter(Boolean));
+  const out=primary.slice(); let added=0;
+  for(const r of extra){ const n=key(r); if(n&&!seen.has(n)){ seen.add(n); out.push(r); added++; } }
+  return {rows:out, added};
+}
 async function load(){
   const st=document.getElementById("status");
+  // auto-discovered targets committed by the weekly GitHub Action (same origin)
+  const disc=await fetchCsvRaw("discovered.csv");
+  const discNote=n=>n?` (+${n} auto-discovered)`:``;
   const url=sheetCsvUrl();
   if(url){
     try{
       const res=await fetch(url,{cache:"no-store"});
       if(!res.ok) throw new Error("HTTP "+res.status);
-      const txt=await res.text();
-      const raw=parseCSV(txt);
-      const recs=buildAll(raw);
-      if(!recs.length) throw new Error("sheet parsed but no valid rows");
-      DATA=recs;
+      const raw=parseCSV(await res.text());
+      const m=mergeRaw(raw, disc);
+      DATA=buildAll(m.rows);
+      if(!DATA.length) throw new Error("sheet parsed but no valid rows");
       st.className="status ok";
-      st.innerHTML=`Live from Google Sheet · ${DATA.length} shootable targets · updated ${new Date().toLocaleString()}`;
+      st.innerHTML=`Live from Google Sheet · ${DATA.length} shootable targets${discNote(m.added)} · updated ${new Date().toLocaleString()}`;
       finishRender(); return;
     }catch(e){
-      DATA=buildAll(SEED);
+      const m=mergeRaw(SEED, disc);
+      DATA=buildAll(m.rows);
       st.className="status err";
-      st.innerHTML=`Couldn't read the Google Sheet (${e.message}). Showing the built-in catalogue. `+
+      st.innerHTML=`Couldn't read the Google Sheet (${e.message}). Showing the built-in catalogue${discNote(m.added)}. `+
         `Check the sheet is shared "Anyone with the link – Viewer" and the ID/gid are correct.`;
       finishRender(); return;
     }
   }
-  DATA=buildAll(SEED);
+  const m=mergeRaw(SEED, disc);
+  DATA=buildAll(m.rows);
   st.className="status warn";
-  st.innerHTML=`No Google Sheet configured yet — showing the built-in catalogue of ${DATA.length} targets. `+
+  st.innerHTML=`No Google Sheet configured yet — showing the built-in catalogue of ${DATA.length} targets${discNote(m.added)}. `+
     `Add <code>?sheet=YOUR_SHEET_ID</code> to the URL, or set sheet_id in the file. See the README.`;
   finishRender();
 }
